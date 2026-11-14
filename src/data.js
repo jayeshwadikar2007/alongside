@@ -44,6 +44,7 @@ export const SAMPLES = [
   "My son is four. Every time we go to the grocery store he screams and covers his ears, and lately he only eats crackers and plain pasta. I'm exhausted and I feel like everyone is staring at us.",
   "My daughter is seven and she's an angel at school, the teacher says she's fine. But the minute she gets home she falls apart, crying and screaming for an hour. And she wakes up at 3am most nights.",
   "He's five and still not talking. When he can't get what he wants he hits me or bangs his head on the floor. We were just diagnosed and the waitlist for therapy is eight months.",
+  "Mi hijo tiene cuatro años. Cada vez que vamos al supermercado grita y se tapa los oídos. Solo come galletas y pasta. Estoy agotada y siento que todos nos miran.",
 ];
 
 // Demo journal: one child's month. Store trips fall on the same weekday, after-school entries on another.

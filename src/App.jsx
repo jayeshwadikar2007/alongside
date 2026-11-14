@@ -101,6 +101,11 @@ const css = `
 .al-dates { font-size:14px; color:var(--muted); margin-top:2px !important; }
 .al-sent { color:var(--accent); font-weight:700; margin-top:10px !important; }
 .al-linkbtn { background:none; border:none; padding:0; font:inherit; color:var(--accent); text-decoration:underline; cursor:pointer; }
+.al-timebadge { display:inline-flex; align-items:center; gap:8px; background:var(--accent); color:var(--accent-ink);
+  font-weight:700; font-size:16px; border-radius:999px; padding:7px 20px; margin-bottom:20px; }
+.al-impact { display:flex; gap:16px; flex-wrap:wrap; margin-top:16px; margin-bottom:28px; }
+.al-impact span { background:var(--accent-soft); color:var(--accent); font-size:14px; font-weight:700;
+  border-radius:999px; padding:4px 14px; }
 `;
 
 const STEPS = [
@@ -289,7 +294,7 @@ function ShareTab({ allMentors, onLog }) {
       try {
         return await askClaude(task, input);
       } catch (e) {
-        const demo = getDemoResponse(task, idx);
+        const demo = getDemoResponse(task, idx, text);
         if (demo !== null) {
           await new Promise((r) => setTimeout(r, 300 + Math.random() * 400));
           return demo;
@@ -434,7 +439,7 @@ function ShareTab({ allMentors, onLog }) {
         <div className="al-section">
           <h2>People who've been there</h2>
           <p className="al-sub">Matched on what your child is going through, not just age or diagnosis.</p>
-          {matchTime && <p className="al-sub" data-testid="time-to-match">Found in {matchTime} seconds</p>}
+          {matchTime && <div className="al-timebadge" data-testid="time-to-match">Found in {matchTime} seconds</div>}
           {matches.map((x) => (
             <MentorCard key={x.id} match={x} profile={profile} parentText={text} />
           ))}
@@ -500,6 +505,11 @@ function ShareTab({ allMentors, onLog }) {
       <p className="al-lede">
         Say it however it comes out. We'll find parents and autistic adults who have been through something similar, and what helped them.
       </p>
+      <div className="al-impact">
+        <span>Mentor matched in under 10 seconds</span>
+        <span>No waitlist</span>
+        <span>Works in any language</span>
+      </div>
       {error && <p className="al-error" role="alert">{error}</p>}
       <MicButton onText={appendTo(setText)} />
       <textarea

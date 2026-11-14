@@ -43,9 +43,9 @@ describe("demo data", () => {
     const store = DEMO_LOGS.filter((d) => /costco|farmers market/i.test(d.text)).map((d) => d.daysAgo % 7);
     expect(new Set(store).size).toBe(1);
   });
-  it("has 6 categories and 3 sample stories", () => {
+  it("has 6 categories and 4 sample stories", () => {
     expect(Object.keys(CATEGORIES)).toHaveLength(6);
-    expect(SAMPLES).toHaveLength(3);
+    expect(SAMPLES).toHaveLength(4);
   });
   it("labels roles for display", () => expect(roleLabel("autistic adult")).toBe("Autistic adult"));
 });

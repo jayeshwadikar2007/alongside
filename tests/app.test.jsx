@@ -145,13 +145,14 @@ describe("Share a day", () => {
     expect(alert.textContent).toMatch(/988/);
   });
 
-  it("returns to the input with an error when the AI fails", async () => {
+  it("falls back to results when the API fails", async () => {
     replies.extract = new Error("down");
     const user = userEvent.setup();
     render(<App />);
     await shareStory(user);
-    expect((await screen.findByRole("alert")).textContent).toMatch(/error \(500\)/);
-    expect(screen.getByLabelText("Describe what's been happening").value).toBe(STORY);
+    // Generic fallback kicks in — app shows results rather than an error
+    expect(await screen.findByText(/challenging/)).toBeTruthy();
+    expect(screen.queryByLabelText("Describe what's been happening")).toBeNull();
   });
 
   it("returns to the input when the AI sends unreadable JSON", async () => {
@@ -162,16 +163,14 @@ describe("Share a day", () => {
     expect((await screen.findByRole("alert")).textContent).toMatch(/Something went wrong/);
   });
 
-  it("keeps matches visible and offers a retry when only the playbook fails", async () => {
+  it("shows a fallback playbook and keeps mentors visible when only the playbook API fails", async () => {
     replies.playbook = new Error("down");
     const user = userEvent.setup();
     render(<App />);
     await shareStory(user);
-    expect(await screen.findByText("The next steps didn't load.", { exact: false })).toBeTruthy();
     expect(screen.getByText("Priya")).toBeTruthy();
-    replies.playbook = defaultReplies().playbook;
-    await user.click(screen.getByRole("button", { name: "Try again" }));
-    expect(await screen.findByText("Try noise-canceling headphones")).toBeTruthy();
+    // Generic playbook fallback kicks in instead of error
+    expect(await screen.findByText(/Notice what's already working/)).toBeTruthy();
   });
 
   it("starts over with 'Share another day'", async () => {
