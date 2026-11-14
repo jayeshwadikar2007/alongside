@@ -10,9 +10,9 @@ Peer-support app for families on the autism spectrum. A parent describes a hard 
 - `api/claude.js` – Vercel function; browser sends only `{ task, input }`, key stays server-side
 
 ## Commands
-- `npm test` – vitest, 54 passing: helpers, data, API route, and every UI feature with a mocked AI
+- `npm test` – vitest, 57 passing: helpers, data, API route, every UI feature with mocked AI
 - `vercel dev` – run app + API locally (needs `vercel env pull .env.local`)
-- `npm run eval` – live prompt evals, 19 cases / 106 checks (needs ANTHROPIC_API_KEY; `--runs N`, `--only extract,match`, `--mock` for an offline self-test)
+- `npm run eval` – live prompt evals, 124 cases / 514 checks (needs ANTHROPIC_API_KEY; `--runs N`, `--only extract,match,safety`, `--mock` for offline self-test)
 - `vercel --prod` – deploy
 
 ## Rules
@@ -20,9 +20,15 @@ Peer-support app for families on the autism spectrum. A parent describes a hard 
 - Keep the calm, low-stimulation design. Light and dark mode via CSS variables.
 - Don't put the API key in frontend code.
 
+## Architecture
+- `api/claude.js` – Vercel serverless: single AI call, non-safety tasks (checkin, patterns, intro, mentor)
+- `api/agent.js` – Vercel serverless: safety validation agent loop — runs extract/match/playbook, then validates output with a second AI call, retries with reinforced prompt on failure (up to 2 retries)
+- `src/guardrails.js` – client-side: input crisis/injection detection, output diagnosis-language stripping, sessionStorage audit log
+- `src/demo.js` – demo fallback for 4 sample stories + keyword-based generic fallback (no API needed)
+
 ## Status
-- Done: all features, 54 UI/unit/API tests passing, eval suite written and self-tested with `--mock`, hover-then-click highlight bug fixed.
-- Event: GTransformer AI for Good Buildathon, Nov 13–15 2026. Tracks: Wellbeing, Connection, Learning. Responsible AI is REQUIRED for every project. Judges ask: "who does this measurably help, and how?" See `PITCH.md`.
+- Done: all features, 57 UI/unit/API tests passing, 124-case eval suite (514 checks, 54 red-team), safety validation agent, demo fallback, multilingual support, guardrails, eval self-tested with `--mock`, "How it's safe" tab, time-to-match badge, honest demo messaging.
+- Event: GTransformer AI for Good Buildathon, Nov 13–15 2026. Tracks: Wellbeing, Connection, Learning. Responsible AI is REQUIRED for every project.
 
 ## Remaining work (in order, run `npm test` after each code change)
 1. **Live evals:** `npm run eval`. For any FAIL, fix the prompt in `src/prompts.js` (not the check, unless the check is clearly wrong), rerun with `--only <suite>` until all pass. Save the final summary output to `evals/RESULTS.md` (pass counts per suite) for the pitch.

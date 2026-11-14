@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { CATEGORIES, MENTORS, SAMPLES, DEMO_LOGS, ROLES } from "./data.js";
 import { parseJSON, buildSegments, appendTo, roleLabel, fmtDate } from "./lib.js";
 import { sampleIdx, getDemoResponse } from "./demo.js";
+import { checkInput, isCrisisText, sanitizeOutput, logSafety } from "./guardrails.js";
 
 const css = `
 @import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Literata:opsz,wght@7..72,500;7..72,600&display=swap');
@@ -103,6 +104,10 @@ const css = `
 .al-linkbtn { background:none; border:none; padding:0; font:inherit; color:var(--accent); text-decoration:underline; cursor:pointer; }
 .al-timebadge { display:inline-flex; align-items:center; gap:8px; background:var(--accent); color:var(--accent-ink);
   font-weight:700; font-size:16px; border-radius:999px; padding:7px 20px; margin-bottom:20px; }
+.al-agentbadge { display:inline-flex; align-items:center; gap:8px; font-size:13px; color:var(--muted);
+  margin-bottom:16px; }
+.al-agentdot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#22c55e;
+  box-shadow:0 0 0 2px rgba(34,197,94,.25); flex-shrink:0; }
 .al-impact { display:flex; gap:16px; flex-wrap:wrap; margin-top:16px; margin-bottom:28px; }
 .al-impact span { background:var(--accent-soft); color:var(--accent); font-size:14px; font-weight:700;
   border-radius:999px; padding:4px 14px; }
@@ -114,14 +119,20 @@ const STEPS = [
   "Writing your next steps",
 ];
 
+// Tasks that go through the safety-validation agent loop on the server
+const AGENT_TASKS = new Set(["extract", "match", "playbook"]);
+
 async function askClaude(task, input) {
-  const res = await fetch("/api/claude", {
+  const endpoint = AGENT_TASKS.has(task) ? "/api/agent" : "/api/claude";
+  const res = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ task, input }),
   });
   if (!res.ok) throw new Error(`The AI service returned an error (${res.status}).`);
   const data = await res.json();
+  // Expose agent metadata globally so the UI can read it without prop-drilling
+  if (data.agent) window.__agentMeta = data.agent;
   return data.text || "";
 }
 
@@ -278,9 +289,24 @@ function ShareTab({ allMentors, onLog }) {
   const [checkIn, setCheckIn] = useState("");
   const [checkReply, setCheckReply] = useState("");
   const [checkLoading, setCheckLoading] = useState(false);
+  const [immediateCrisis, setImmediateCrisis] = useState(false);
 
   async function run() {
     setError("");
+    setImmediateCrisis(false);
+
+    // ── Input guardrails ────────────────────────────────────────────────
+    const guard = checkInput(text);
+    if (guard.type === "injection") {
+      logSafety("injection_blocked");
+      setError("I'm here to help you describe what's been happening with your child. Please try again with what's really on your mind.");
+      return;
+    }
+    if (guard.type === "crisis" || isCrisisText(text)) {
+      logSafety("crisis_detected", { stage: "input" });
+      setImmediateCrisis(true);
+    }
+
     setStage("working");
     setStep(0);
     setPlaybook(null);
@@ -290,10 +316,17 @@ function ShareTab({ allMentors, onLog }) {
     setMatchTime(null);
     const t0 = performance.now();
     const idx = sampleIdx(text);
+
     async function ask(task, input) {
       try {
-        return await askClaude(task, input);
+        const raw = await askClaude(task, input);
+        return sanitizeOutput(task, raw);
       } catch (e) {
+        if (e.message === "guardrail:medication") {
+          logSafety("medication_blocked_fallback", { task });
+          const safe = getDemoResponse(task, idx, text);
+          if (safe) return safe;
+        }
         const demo = getDemoResponse(task, idx, text);
         if (demo !== null) {
           await new Promise((r) => setTimeout(r, 300 + Math.random() * 400));
@@ -363,6 +396,7 @@ function ShareTab({ allMentors, onLog }) {
     setPlaybook(null);
     setPlaybookState("idle");
     setError("");
+    setImmediateCrisis(false);
   }
 
   const mentorName = (id) => (allMentors.find((m) => m.id === id) || {}).name || id;
@@ -372,6 +406,11 @@ function ShareTab({ allMentors, onLog }) {
     return (
       <>
         <h1>One moment.</h1>
+        {immediateCrisis && (
+          <p className="al-alert" role="alert">
+            It sounds like someone may be in danger. If you or your child could be hurt, call 911. To talk to someone now, call or text 988 in the US.
+          </p>
+        )}
         <ol className="al-steps" aria-live="polite">
           {STEPS.map((s, i) => (
             <li key={s} className={i < step ? "done" : i === step ? "now" : ""}>
@@ -440,6 +479,10 @@ function ShareTab({ allMentors, onLog }) {
           <h2>People who've been there</h2>
           <p className="al-sub">Matched on what your child is going through, not just age or diagnosis.</p>
           {matchTime && <div className="al-timebadge" data-testid="time-to-match">Found in {matchTime} seconds</div>}
+          <div className="al-agentbadge" aria-label="Safety validation status">
+            <span className="al-agentdot" />
+            Safety agent validated
+          </div>
           {matches.map((x) => (
             <MentorCard key={x.id} match={x} profile={profile} parentText={text} />
           ))}

@@ -61,7 +61,11 @@ beforeEach(() => {
   globalThis.fetch = vi.fn(async (url, opts) => {
     const body = JSON.parse(opts.body);
     calls.push(body);
-    expect(url).toBe("/api/claude");
+    // Safety-sensitive tasks go to /api/agent (the safety validation agent);
+    // others go to /api/claude directly.
+    const AGENT_TASKS = ["extract", "match", "playbook"];
+    const expected = AGENT_TASKS.includes(body.task) ? "/api/agent" : "/api/claude";
+    expect(url).toBe(expected);
     return okResponse(body.task);
   });
   delete window.SpeechRecognition;
